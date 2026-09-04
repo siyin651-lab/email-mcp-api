@@ -15,7 +15,21 @@ module.exports = async (req, res) => {
     return res.status(405).json({ error: 'Method Not Allowed' });
   }
 
-  const body = req.body;
+  // 手动解析 JSON body（Vercel 默认不自动解析）
+  let body = req.body;
+  if (!body || typeof body !== 'object' || Buffer.isBuffer(body)) {
+    const chunks = [];
+    try {
+      for await (const chunk of req) {
+        chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk, 'utf8'));
+      }
+      const raw = Buffer.concat(chunks).toString('utf8');
+      body = raw ? JSON.parse(raw) : {};
+    } catch (e) {
+      return res.status(400).json({ error: 'Invalid JSON body', details: e.message });
+    }
+  }
+
   const { jsonrpc, id, method, params } = body;
 
   // 发送成功回复的“小助手”
